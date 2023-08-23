@@ -1,6 +1,7 @@
 {
     "cmake.configureOnOpen": false,
     "files.associations": {
-        "display.h": "c"
+        "display.h": "c",
+        "font.h": "c"
     }
 }
