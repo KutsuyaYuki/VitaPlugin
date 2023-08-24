@@ -1,8 +1,8 @@
 #include <psp2/display.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h> // Include for delay function
-#include <psp2/ctrl.h> // Add this for controller input
-#include <psp2/net/net.h> // Add this for network functions
+#include <psp2/ctrl.h>             // Add this for controller input
+#include <psp2/net/net.h>          // Add this for network functions
 #include <psp2/net/netctl.h>
 #include <psp2/sysmodule.h>
 
@@ -19,16 +19,17 @@
 #define CONTENT_HEIGHT (SCREEN_HEIGHT - TITLE_BAR_HEIGHT)
 #define ITEM_HEIGHT 40 // Height of each list item
 
-int selected_item = 0; // Index of the currently selected item
-int delay_counter = 0; // Counter to track delay
+int selected_item = 0;   // Index of the currently selected item
+int delay_counter = 0;   // Counter to track delay
 int INITIAL_DELAY = 200; // Initial delay in ms
-int NORMAL_DELAY = 50; // Normal delay in ms
+int NORMAL_DELAY = 200;  // Normal delay in ms
 
 ParsedJSON parsed_json;
 
 vita2d_pgf *font;
 
-int initNet() {
+int initNet()
+{
     sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
     SceNetInitParam initparam;
     int size = 1 * 1024 * 1024;
@@ -37,7 +38,8 @@ int initNet() {
     initparam.flags = 0;
 
     int result = sceNetInit(&initparam);
-    if (result != 0 && result != SCE_NET_ERROR_EBUSY) {
+    if (result != 0 && result != SCE_NET_ERROR_EBUSY)
+    {
         // Handle the error
         return result;
     }
@@ -47,16 +49,19 @@ int initNet() {
     return 0;
 }
 
-void display_json_items(ParsedJSON parsed_json, int page) {
+void display_json_items(ParsedJSON parsed_json, int page)
+{
     int ITEMS_PER_PAGE = 10;
     int start_index = page * ITEMS_PER_PAGE;
     int end_index = start_index + ITEMS_PER_PAGE - 1;
-    if (end_index >= parsed_json.count) {
+    if (end_index >= parsed_json.count)
+    {
         end_index = parsed_json.count - 1;
     }
 
     int y = CONTENT_AREA; // Start at CONTENT_AREA
-    for (int i = start_index; i <= end_index; i++) {
+    for (int i = start_index; i <= end_index; i++)
+    {
         const char *item_name = parsed_json.items[i];
 
         // Determine the color based on the selection
@@ -85,7 +90,8 @@ void mainloop()
     vita2d_swap_buffers();
 }
 
-int main() {
+int main()
+{
     vita2d_init();
     initNet();
     font = vita2d_load_default_pgf();
@@ -96,34 +102,54 @@ int main() {
     download_data(url, file_name);
     parsed_json = parse_json(file_name);
 
-    SceCtrlData pad; // Declare the controller input variable
+    SceCtrlData pad;                                   // Declare the controller input variable
     sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE); // Set D-pad mode
 
-    int was_holding_dpad = 0; // Track if the dpad was held previously
+    int was_holding_dpad = 0;        // Track if the dpad was held previously
+    unsigned int next_move_time = 0; // Time when the next move is allowed
+    unsigned int current_delay = 0;  // Current delay (initial or normal)
 
-    while (1) {
-    sceCtrlPeekBufferPositive(0, &pad, 1); // Get controller input
+    while (1)
+    {
+        sceCtrlPeekBufferPositive(0, &pad, 1);
 
-    if ((pad.buttons & SCE_CTRL_DOWN) || (pad.buttons & SCE_CTRL_UP)) {
-        if (!was_holding_dpad) {
-            // If dpad was not previously held, apply initial delay
-            sceKernelDelayThread(INITIAL_DELAY * 1000); // Delay in microseconds
-            was_holding_dpad = 1;
-        } else {
-            // If dpad was previously held, apply normal delay
-            sceKernelDelayThread(NORMAL_DELAY * 1000); // Delay in microseconds
+        unsigned int current_time = sceKernelGetProcessTimeLow();
+
+        if (pad.buttons & SCE_CTRL_SELECT)
+        {
+            break;
         }
 
-        if (pad.buttons & SCE_CTRL_DOWN) {
-            selected_item = (selected_item + 1) % parsed_json.count;
+        if (pad.buttons & SCE_CTRL_LTRIGGER)
+        {
+            selected_item = 0;
         }
-        if (pad.buttons & SCE_CTRL_UP) {
-            selected_item = (selected_item - 1 + parsed_json.count) % parsed_json.count;
+
+        if (pad.buttons & SCE_CTRL_RTRIGGER)
+        {
+            selected_item = parsed_json.count - 1;
         }
-    } else {
-        // If dpad is not held, reset the holding state
-        was_holding_dpad = 0;
-    }
+
+        if (pad.buttons & (SCE_CTRL_DOWN | SCE_CTRL_UP))
+        {
+            if (!was_holding_dpad)
+            {
+                selected_item = (selected_item + (pad.buttons & SCE_CTRL_DOWN ? 1 : -1) + parsed_json.count) % parsed_json.count;
+                was_holding_dpad = 1;
+                current_delay = INITIAL_DELAY;
+                next_move_time = current_time + current_delay * 1000;
+            }
+            else if (current_time >= next_move_time)
+            {
+                selected_item = (selected_item + (pad.buttons & SCE_CTRL_DOWN ? 1 : -1) + parsed_json.count) % parsed_json.count;
+                current_delay = NORMAL_DELAY;
+                next_move_time = current_time + current_delay * 250;
+            }
+        }
+        else
+        {
+            was_holding_dpad = 0;
+        }
         mainloop();
     }
 
