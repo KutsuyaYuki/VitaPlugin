@@ -24,6 +24,8 @@ int delay_counter = 0;   // Counter to track delay
 int INITIAL_DELAY = 200; // Initial delay in ms
 int NORMAL_DELAY = 200;  // Normal delay in ms
 
+int ITEMS_PER_PAGE = 10; // Number of items per page
+
 ParsedJSON parsed_json;
 
 vita2d_pgf *font;
@@ -51,7 +53,6 @@ int initNet()
 
 void display_json_items(ParsedJSON parsed_json, int page)
 {
-    int ITEMS_PER_PAGE = 10;
     int start_index = page * ITEMS_PER_PAGE;
     int end_index = start_index + ITEMS_PER_PAGE - 1;
     if (end_index >= parsed_json.count)
@@ -72,7 +73,7 @@ void display_json_items(ParsedJSON parsed_json, int page)
     }
 }
 
-void mainloop()
+void drawpage(int current_page, int total_pages)
 {
     vita2d_start_drawing();
     vita2d_clear_screen();
@@ -84,8 +85,17 @@ void mainloop()
     // Draw content area
     vita2d_draw_rectangle(0, TITLE_BAR_HEIGHT, SCREEN_WIDTH, CONTENT_HEIGHT, RGBA8(0x00, 0x00, 0x00, 0xFF));
 
-    display_json_items(parsed_json, 0); // Displaying page 0
+    display_json_items(parsed_json, current_page); // Display the current page
 
+    // Draw footer bar
+    vita2d_draw_rectangle(0, SCREEN_HEIGHT - TITLE_BAR_HEIGHT, SCREEN_WIDTH, TITLE_BAR_HEIGHT, RGBA8(0x00, 0x00, 0xFF, 0xFF));
+
+    // Create the footer text
+    char footer_text[20]; // Assuming the footer text won't exceed 20 characters
+    snprintf(footer_text, sizeof(footer_text), "%d/%d", current_page + 1, total_pages);
+
+    // Draw the footer text
+    font_draw_string(10, SCREEN_HEIGHT - TITLE_BAR_HEIGHT + 5, RGBA8(0xFF, 0xFF, 0xFF, 0xFF), footer_text);
     vita2d_end_drawing();
     vita2d_swap_buffers();
 }
@@ -108,6 +118,9 @@ int main()
     int was_holding_dpad = 0;        // Track if the dpad was held previously
     unsigned int next_move_time = 0; // Time when the next move is allowed
     unsigned int current_delay = 0;  // Current delay (initial or normal)
+
+    int total_pages = (parsed_json.count + 9) / 10; // Calculate the total number of pages
+    int current_page = 0;                           // Initialize the current page to 0
 
     while (1)
     {
@@ -138,24 +151,51 @@ int main()
                 was_holding_dpad = 1;
                 current_delay = INITIAL_DELAY;
                 next_move_time = current_time + current_delay * 1000;
+
+                // Update current_page if the selection goes off the current page
+                if (selected_item < current_page * ITEMS_PER_PAGE || selected_item >= (current_page + 1) * ITEMS_PER_PAGE)
+                {
+                    current_page = selected_item / ITEMS_PER_PAGE;
+                }
             }
             else if (current_time >= next_move_time)
             {
                 selected_item = (selected_item + (pad.buttons & SCE_CTRL_DOWN ? 1 : -1) + parsed_json.count) % parsed_json.count;
                 current_delay = NORMAL_DELAY;
                 next_move_time = current_time + current_delay * 250;
+
+                // Update current_page if the selection goes off the current page
+                if (selected_item < current_page * ITEMS_PER_PAGE || selected_item >= (current_page + 1) * ITEMS_PER_PAGE)
+                {
+                    current_page = selected_item / ITEMS_PER_PAGE;
+                }
             }
-        }
-        else
+        } else if (pad.buttons & (SCE_CTRL_LEFT | SCE_CTRL_RIGHT))
         {
+            if (!was_holding_dpad)
+            {
+                current_page = (current_page + (pad.buttons & SCE_CTRL_RIGHT ? 1 : -1) + total_pages) % total_pages;
+                was_holding_dpad = 1;
+                current_delay = INITIAL_DELAY;
+                next_move_time = current_time + current_delay * 1000;
+            }
+            else if (current_time >= next_move_time)
+            {
+                current_page = (current_page + (pad.buttons & SCE_CTRL_RIGHT ? 1 : -1) + total_pages) % total_pages;
+                current_delay = NORMAL_DELAY;
+                next_move_time = current_time + current_delay * 250;
+            }
+        } else {
             was_holding_dpad = 0;
         }
-        mainloop();
+
+        
+        drawpage(current_page, total_pages);
     }
 
     vita2d_free_pgf(font);
     vita2d_fini();
     sceKernelExitProcess(0);
 
-    return 0;
+    return 0; // Moved outside the loop
 }
