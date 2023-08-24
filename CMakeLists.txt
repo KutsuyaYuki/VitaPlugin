@@ -8,7 +8,7 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   endif()
 endif()
 
-project(redrectangle)
+project(yukiapp)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
 find_package(SDL2 REQUIRED)
@@ -28,13 +28,33 @@ add_executable(${PROJECT_NAME}
   src/font_data.c
   src/font.c
   src/main.c
+  src/network.c
+  src/json.c
 )
+
+# Find libcurl, Jansson, OpenSSL, and zlib (Modify paths as needed)
+find_library(CURL_LIBRARIES NAMES curl)
+find_library(JANSSON_LIBRARIES NAMES jansson)
+find_library(SSL_LIBRARIES NAMES ssl) # OpenSSL SSL Library
+find_library(CRYPTO_LIBRARIES NAMES crypto) # OpenSSL Crypto Library
+find_library(ZLIB_LIBRARIES NAMES z) # zlib Library
+
+# ...
 
 target_link_libraries(${PROJECT_NAME}
   SDL2::SDL2
   vita2d
   -lScePgf_stub
+  ${CURL_LIBRARIES}    # Link libcurl
+  ${JANSSON_LIBRARIES} # Link Jansson
+  ${SSL_LIBRARIES}     # Link OpenSSL SSL Library
+  ${CRYPTO_LIBRARIES}  # Link OpenSSL Crypto Library
+  ${ZLIB_LIBRARIES}    # Link zlib Library
+  SceNet_stub
+  SceNetCtl_stub
+  SceSysmodule_stub
 )
+
 
 vita_create_self(${PROJECT_NAME}.self ${PROJECT_NAME})
 vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self

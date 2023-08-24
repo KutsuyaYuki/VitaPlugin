@@ -2,6 +2,7 @@
     "cmake.configureOnOpen": false,
     "files.associations": {
         "display.h": "c",
-        "font.h": "c"
+        "font.h": "c",
+        "jansson.h": "c"
     }
 }
