@@ -4,11 +4,10 @@
 
 #include <jansson.h>
 
-#define MAX_ITEMS 100
-
 typedef struct {
-    char *items[MAX_ITEMS];
+    char **items; // Changed to a pointer
     int count;
+    char *background_url;
 } ParsedJSON;
 
 ParsedJSON parse_json(const char *file_name);

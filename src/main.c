@@ -15,9 +15,11 @@
 #define SCREEN_HEIGHT 544
 
 #define TITLE_BAR_HEIGHT 30
-#define CONTENT_AREA TITLE_BAR_HEIGHT + 30
+#define CONTENT_AREA TITLE_BAR_HEIGHT
 #define CONTENT_HEIGHT (SCREEN_HEIGHT - TITLE_BAR_HEIGHT)
 #define ITEM_HEIGHT 40 // Height of each list item
+
+#define BACKGROUND_IMAGE "ux0:data/wallpaper.png" // File name for the downloaded background image
 
 int selected_item = 0;   // Index of the currently selected item
 int delay_counter = 0;   // Counter to track delay
@@ -29,6 +31,7 @@ int ITEMS_PER_PAGE = 10; // Number of items per page
 ParsedJSON parsed_json;
 
 vita2d_pgf *font;
+vita2d_texture *background_texture; // Texture for the background image
 
 int initNet()
 {
@@ -78,12 +81,20 @@ void drawpage(int current_page, int total_pages)
     vita2d_start_drawing();
     vita2d_clear_screen();
 
+    // Draw the background texture in the content area if it's valid
+    if (background_texture != NULL) {
+        vita2d_draw_texture(background_texture, 0, CONTENT_AREA); // Draw at (0, 0) for debugging
+    }
+    else {
+        vita2d_draw_rectangle(0, CONTENT_AREA, SCREEN_WIDTH, CONTENT_HEIGHT, RGBA8(0xFF, 0x00, 0x00, 0xFF));
+    }
+
     // Draw title bar
     vita2d_draw_rectangle(0, 0, SCREEN_WIDTH, TITLE_BAR_HEIGHT, RGBA8(0x00, 0x00, 0xFF, 0xFF));
     font_draw_string(10, 5, RGBA8(0xFF, 0xFF, 0xFF, 0xFF), "Yuki's First Vita Application");
 
     // Draw content area
-    vita2d_draw_rectangle(0, TITLE_BAR_HEIGHT, SCREEN_WIDTH, CONTENT_HEIGHT, RGBA8(0x00, 0x00, 0x00, 0xFF));
+    vita2d_draw_rectangle(0, TITLE_BAR_HEIGHT, SCREEN_WIDTH, CONTENT_HEIGHT, RGBA8(0x00, 0x00, 0x00, 0x55));
 
     display_json_items(parsed_json, current_page); // Display the current page
 
@@ -107,10 +118,16 @@ int main()
     font = vita2d_load_default_pgf();
 
     // Download and parse JSON
-    const char *url = "http://sharkdash.blahaj.nl/vita.json";
+    const char *url = "http://sharkdash.blahaj.nl/vita/vita.json";
     const char *file_name = "ux0:data/downloaded.json";
     download_data(url, file_name);
     parsed_json = parse_json(file_name);
+    download_data(parsed_json.background_url, BACKGROUND_IMAGE);
+    background_texture = vita2d_load_PNG_file(BACKGROUND_IMAGE); // Load the background texture
+    if (background_texture == NULL) {
+        printf("Failed to load background texture.\n");
+    }
+
 
     SceCtrlData pad;                                   // Declare the controller input variable
     sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE); // Set D-pad mode

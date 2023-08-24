@@ -38,6 +38,7 @@ find_library(JANSSON_LIBRARIES NAMES jansson)
 find_library(SSL_LIBRARIES NAMES ssl) # OpenSSL SSL Library
 find_library(CRYPTO_LIBRARIES NAMES crypto) # OpenSSL Crypto Library
 find_library(ZLIB_LIBRARIES NAMES z) # zlib Library
+find_library(PNG_LIBRARIES NAMES png) # zlib Library
 
 # ...
 
@@ -49,6 +50,7 @@ target_link_libraries(${PROJECT_NAME}
   ${JANSSON_LIBRARIES} # Link Jansson
   ${SSL_LIBRARIES}     # Link OpenSSL SSL Library
   ${CRYPTO_LIBRARIES}  # Link OpenSSL Crypto Library
+  ${PNG_LIBRARIES}     # Link libpng Library
   ${ZLIB_LIBRARIES}    # Link zlib Library
   SceNet_stub
   SceNetCtl_stub

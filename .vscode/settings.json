@@ -3,6 +3,7 @@
     "files.associations": {
         "display.h": "c",
         "font.h": "c",
-        "jansson.h": "c"
+        "jansson.h": "c",
+        "sysmodule.h": "c"
     }
 }
