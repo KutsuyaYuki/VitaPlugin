@@ -1,3 +1,5 @@
+<img width="951" alt="image" src="https://github.com/KutsuyaYuki/VitaPlugin/assets/17732178/b6f48a2e-b807-40f1-9471-803f5ad5d0ad">
+
 ## Project Overview
 
 Welcome to my debut PSVita application project!
