@@ -1,11 +1,11 @@
 #include <psp2/display.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h> // Include for delay function
-#include <psp2/ctrl.h>             // Add this for controller input
-#include <psp2/net/net.h>          // Add this for network functions
+#include <psp2/ctrl.h>             // For controller input
+#include <psp2/net/net.h>          // For network functions
 #include <psp2/net/netctl.h>
 #include <psp2/sysmodule.h>
-
+#include <stdlib.h>                // For calloc and free
 #include <vita2d.h>
 #include "font.h"
 #include "network.h"
@@ -29,6 +29,7 @@ int NORMAL_DELAY = 200;  // Normal delay in ms
 int ITEMS_PER_PAGE = 10; // Number of items per page
 
 ParsedJSON parsed_json;
+uint32_t *clicked_times; // Array to track the time when items are clicked
 
 vita2d_pgf *font;
 vita2d_texture *background_texture; // Texture for the background image
@@ -54,7 +55,7 @@ int initNet()
     return 0;
 }
 
-void display_json_items(ParsedJSON parsed_json, int page)
+void display_json_items(ParsedJSON parsed_json, int page, uint32_t current_time)
 {
     int start_index = page * ITEMS_PER_PAGE;
     int end_index = start_index + ITEMS_PER_PAGE - 1;
@@ -68,22 +69,29 @@ void display_json_items(ParsedJSON parsed_json, int page)
     {
         const char *item_name = parsed_json.items[i];
 
-        // Determine the color based on the selection
-        uint32_t color = (i == selected_item) ? RGBA8(0xFF, 0x00, 0x00, 0xFF) : RGBA8(0xFF, 0xFF, 0xFF, 0xFF);
+        // Determine the color based on the selection and clicked status
+        uint32_t color;
+        if (clicked_times[i] != 0 && (current_time - clicked_times[i] <= 1500000)) {
+            color = RGBA8(0x00, 0xFF, 0x00, 0xFF); // Green if clicked within 1.5 seconds
+        } else if (i == selected_item) {
+            color = RGBA8(0xFF, 0x00, 0x00, 0xFF); // Red if selected
+        } else {
+            color = RGBA8(0xFF, 0xFF, 0xFF, 0xFF); // White otherwise
+        }
 
         font_draw_string(10, y, color, item_name);
         y += ITEM_HEIGHT;
     }
 }
 
-void drawpage(int current_page, int total_pages)
+void drawpage(int current_page, int total_pages, uint32_t current_time)
 {
     vita2d_start_drawing();
     vita2d_clear_screen();
 
     // Draw the background texture in the content area if it's valid
     if (background_texture != NULL) {
-        vita2d_draw_texture(background_texture, 0, CONTENT_AREA); // Draw at (0, 0) for debugging
+        vita2d_draw_texture(background_texture, 0, CONTENT_AREA); // Draw at (0, CONTENT_AREA)
     }
     else {
         vita2d_draw_rectangle(0, CONTENT_AREA, SCREEN_WIDTH, CONTENT_HEIGHT, RGBA8(0xFF, 0x00, 0x00, 0xFF));
@@ -96,7 +104,7 @@ void drawpage(int current_page, int total_pages)
     // Draw content area
     vita2d_draw_rectangle(0, TITLE_BAR_HEIGHT, SCREEN_WIDTH, CONTENT_HEIGHT, RGBA8(0x00, 0x00, 0x00, 0x55));
 
-    display_json_items(parsed_json, current_page); // Display the current page
+    display_json_items(parsed_json, current_page, current_time); // Display the current page
 
     // Draw footer bar
     vita2d_draw_rectangle(0, SCREEN_HEIGHT - TITLE_BAR_HEIGHT, SCREEN_WIDTH, TITLE_BAR_HEIGHT, RGBA8(0x00, 0x00, 0xFF, 0xFF));
@@ -122,12 +130,15 @@ int main()
     const char *file_name = "ux0:data/downloaded.json";
     download_data(url, file_name);
     parsed_json = parse_json(file_name);
+
+    // Allocate memory for clicked_times
+    clicked_times = calloc(parsed_json.count, sizeof(uint32_t));
+
     download_data(parsed_json.background_url, BACKGROUND_IMAGE);
     background_texture = vita2d_load_PNG_file(BACKGROUND_IMAGE); // Load the background texture
     if (background_texture == NULL) {
         printf("Failed to load background texture.\n");
     }
-
 
     SceCtrlData pad;                                   // Declare the controller input variable
     sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE); // Set D-pad mode
@@ -143,7 +154,7 @@ int main()
     {
         sceCtrlPeekBufferPositive(0, &pad, 1);
 
-        unsigned int current_time = sceKernelGetProcessTimeLow();
+        uint32_t current_time = sceKernelGetProcessTimeLow();
 
         if (pad.buttons & SCE_CTRL_SELECT)
         {
@@ -158,6 +169,12 @@ int main()
         if (pad.buttons & SCE_CTRL_RTRIGGER)
         {
             selected_item = parsed_json.count - 1;
+        }
+
+        // Check for click action
+        if (pad.buttons & SCE_CTRL_CROSS)
+        {
+            clicked_times[selected_item] = current_time;
         }
 
         if (pad.buttons & (SCE_CTRL_DOWN | SCE_CTRL_UP))
@@ -206,13 +223,15 @@ int main()
             was_holding_dpad = 0;
         }
 
-        
-        drawpage(current_page, total_pages);
+        drawpage(current_page, total_pages, current_time);
     }
+
+    // Free allocated resources
+    free(clicked_times);
 
     vita2d_free_pgf(font);
     vita2d_fini();
     sceKernelExitProcess(0);
 
-    return 0; // Moved outside the loop
+    return 0;
 }

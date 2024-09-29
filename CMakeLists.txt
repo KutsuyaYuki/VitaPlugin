@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   if(DEFINED ENV{VITASDK})
@@ -9,9 +9,11 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 endif()
 
 project(yukiapp)
-include("${VITASDK}/share/vita.cmake" REQUIRED)
+include("${VITASDK}/share/vita.cmake")
 
-find_package(SDL2 REQUIRED)
+set(CMAKE_MODULE_PATH $ENV{VITASDK}/arm-vita-eabi/lib/cmake)
+
+find_package(SDL2 REQUIRED PATHS $ENV{VITASDK}/arm-vita-eabi/lib/cmake/SDL2)
 
 set(VITA_APP_NAME "MeemApp")
 set(VITA_TITLEID  "VSDK00017")
@@ -32,31 +34,20 @@ add_executable(${PROJECT_NAME}
   src/json.c
 )
 
-# Find libcurl, Jansson, OpenSSL, and zlib (Modify paths as needed)
-find_library(CURL_LIBRARIES NAMES curl)
-find_library(JANSSON_LIBRARIES NAMES jansson)
-find_library(SSL_LIBRARIES NAMES ssl) # OpenSSL SSL Library
-find_library(CRYPTO_LIBRARIES NAMES crypto) # OpenSSL Crypto Library
-find_library(ZLIB_LIBRARIES NAMES z) # zlib Library
-find_library(PNG_LIBRARIES NAMES png) # zlib Library
-
-# ...
-
 target_link_libraries(${PROJECT_NAME}
   SDL2::SDL2
   vita2d
   -lScePgf_stub
-  ${CURL_LIBRARIES}    # Link libcurl
-  ${JANSSON_LIBRARIES} # Link Jansson
-  ${SSL_LIBRARIES}     # Link OpenSSL SSL Library
-  ${CRYPTO_LIBRARIES}  # Link OpenSSL Crypto Library
-  ${PNG_LIBRARIES}     # Link libpng Library
-  ${ZLIB_LIBRARIES}    # Link zlib Library
+  curl
+  jansson
+  ssl
+  crypto
+  png
+  z
   SceNet_stub
   SceNetCtl_stub
   SceSysmodule_stub
 )
-
 
 vita_create_self(${PROJECT_NAME}.self ${PROJECT_NAME})
 vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
